@@ -5,6 +5,14 @@ import { expect } from "vitest";
 
 expect.extend({
   toMatchDirSnapshot: function (received: unknown) {
+    if (this.isNot) {
+      return {
+        // true because we don't support .not
+        pass: true,
+        message: () => `.not for toMatchDirSnapshot is not supported`,
+      };
+    }
+
     if (typeof received !== "string") {
       return {
         pass: false,

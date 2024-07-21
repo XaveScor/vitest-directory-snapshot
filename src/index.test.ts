@@ -3,16 +3,20 @@ import { myTest } from "./myTest.js";
 
 describe("toMatchDirSnapshot", () => {
   describe("fail", () => {
-    myTest("expected is not a string", () => {
-      expect(undefined).not.toMatchDirSnapshot();
+    myTest.fails("expected is not a string", () => {
+      expect(undefined).toMatchDirSnapshot();
     });
 
-    myTest("expected is not a directory", () => {
-      expect("invalid").not.toMatchDirSnapshot();
+    myTest.fails("expected is not a directory", () => {
+      expect("invalid").toMatchDirSnapshot();
     });
 
-    myTest("relative path", () => {
-      expect("./fixtures/invalid").not.toMatchDirSnapshot();
+    myTest.fails("relative path", () => {
+      expect("./fixtures/invalid").toMatchDirSnapshot();
+    });
+
+    myTest.fails(".not supported", () => {
+      expect("/").not.toMatchDirSnapshot();
     });
   });
 
