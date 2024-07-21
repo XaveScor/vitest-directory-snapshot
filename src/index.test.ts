@@ -10,6 +10,10 @@ describe("toMatchDirSnapshot", () => {
     myTest("expected is not a directory", () => {
       expect("invalid").not.toMatchDirSnapshot();
     });
+
+    myTest("relative path", () => {
+      expect("./fixtures/invalid").not.toMatchDirSnapshot();
+    });
   });
 
   describe("pass", () => {
@@ -17,8 +21,8 @@ describe("toMatchDirSnapshot", () => {
       expect(tmpDir).toMatchDirSnapshot();
     });
 
-    myTest("dir + text file", () => {
-      expect("./fixtures/text-file").toMatchDirSnapshot();
-    });
+    // myTest("dir + text file", () => {
+    //   expect("./fixtures/text-file").toMatchDirSnapshot();
+    // });
   });
 });

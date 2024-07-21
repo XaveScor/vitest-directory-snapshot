@@ -1,9 +1,10 @@
-import * as fs from "node:fs/promises";
+import * as fs from "node:fs";
 import { Stats } from "node:fs";
+import { isAbsolute } from "node:path";
 import { expect } from "vitest";
 
 expect.extend({
-  toMatchDirSnapshot: async function (received: unknown) {
+  toMatchDirSnapshot: function (received: unknown) {
     if (typeof received !== "string") {
       return {
         pass: false,
@@ -13,9 +14,16 @@ expect.extend({
       };
     }
 
+    if (!isAbsolute(received)) {
+      return {
+        pass: false,
+        message: () => `Expected "${received}" to be an absolute path`,
+      };
+    }
+
     let lstats: Stats;
     try {
-      lstats = await fs.lstat(received);
+      lstats = fs.lstatSync(received);
     } catch (error) {
       return {
         pass: false,
@@ -31,13 +39,13 @@ expect.extend({
       };
     }
 
-    const { snapshotState } = this;
-    // @ts-expect-error we NEED this field
-    const isUpdate = snapshotState._updateSnapshot === "all";
-
-    const content = await fs.readdir(received, { recursive: true });
-
-    console.log(content);
+    // const { snapshotState } = this;
+    // // @ts-expect-error we NEED this field
+    // const isUpdate = snapshotState._updateSnapshot === "all";
+    //
+    // const content = await fs.readdir(received, { recursive: true });
+    //
+    // console.log(content);
 
     return {
       pass: true,
