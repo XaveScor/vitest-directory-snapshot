@@ -1,11 +1,11 @@
-import {defineConfig} from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
     globals: true,
-    setupFiles: ["./src/index.ts"],
+    setupFiles: ["./setupFile.ts"],
     typecheck: {
       enabled: true,
     },
-  }
+  },
 });
