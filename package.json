@@ -1,6 +1,6 @@
 {
   "name": "vitest-directory-snapshot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "module": "./dist/index.module.mjs",
   "exports": "./dist/index.modern.mjs",
