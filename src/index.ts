@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import { isAbsolute, join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { expect } from "vitest";
+import { copyDirectory } from "./copyDirectory.js";
 
 const snapshotDirName = "__dir_snapshots__";
 
@@ -79,12 +80,7 @@ expect.extend({
         snapshotDirName,
         directorySnapshotPath,
       );
-      fs.mkdirSync(snapshotPath, { recursive: true });
-      const receiverDir = fs.readdirSync(received);
-      for (const file of receiverDir) {
-        const filePath = join(received, file);
-        fs.copyFileSync(filePath, join(snapshotPath, file));
-      }
+      copyDirectory(received, snapshotPath);
 
       return {
         pass: true,

@@ -30,5 +30,10 @@ describe("toMatchDirSnapshot", () => {
       const dir = resolve(import.meta.dirname, "fixtures", "text-file");
       expect(dir).toMatchDirSnapshot();
     });
+
+    myTest("hierarchy", () => {
+      const dir = resolve(import.meta.dirname, "fixtures", "hierarchy");
+      expect(dir).toMatchDirSnapshot();
+    });
   });
 });
