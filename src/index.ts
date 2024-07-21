@@ -67,19 +67,15 @@ expect.extend({
       };
     }
 
-    const directorySnapshotPath = createHash("sha256")
+    const testDirName = createHash("sha256")
       .update(`${testPath}/${currentTestName}`)
       .digest("hex");
 
     // @ts-expect-error we NEED this field
     const isUpdate = snapshotState._updateSnapshot === "all";
 
+    const snapshotPath = join(dirname(testPath), snapshotDirName, testDirName);
     if (isUpdate) {
-      const snapshotPath = join(
-        dirname(testPath),
-        snapshotDirName,
-        directorySnapshotPath,
-      );
       copyDirectory(received, snapshotPath);
 
       return {
