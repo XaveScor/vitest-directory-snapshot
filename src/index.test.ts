@@ -1,4 +1,5 @@
 import { describe, expect } from "vitest";
+import { resolve } from "node:path";
 import { myTest } from "./myTest.js";
 
 describe("toMatchDirSnapshot", () => {
@@ -25,8 +26,9 @@ describe("toMatchDirSnapshot", () => {
       expect(tmpDir).toMatchDirSnapshot();
     });
 
-    // myTest("dir + text file", () => {
-    //   expect("./fixtures/text-file").toMatchDirSnapshot();
-    // });
+    myTest("dir + text file", () => {
+      const dir = resolve(import.meta.dirname, "fixtures", "text-file");
+      expect(dir).toMatchDirSnapshot();
+    });
   });
 });

@@ -1,11 +1,30 @@
 import * as fs from "node:fs";
-import { Stats } from "node:fs";
-import { isAbsolute } from "node:path";
+import { isAbsolute, join, dirname } from "node:path";
+import { createHash } from "node:crypto";
 import { expect } from "vitest";
+
+const snapshotDirName = "__dir_snapshots__";
 
 expect.extend({
   toMatchDirSnapshot: function (received: unknown) {
-    if (this.isNot) {
+    const { snapshotState, isNot, testPath, currentTestName } =
+      expect.getState();
+
+    if (!testPath) {
+      return {
+        pass: false,
+        message: () => `testPath is not defined`,
+      };
+    }
+
+    if (!currentTestName) {
+      return {
+        pass: false,
+        message: () => `currentTestName is not defined`,
+      };
+    }
+
+    if (isNot) {
       return {
         // true because we don't support .not
         pass: true,
@@ -29,7 +48,7 @@ expect.extend({
       };
     }
 
-    let lstats: Stats;
+    let lstats: fs.Stats;
     try {
       lstats = fs.lstatSync(received);
     } catch (error) {
@@ -47,13 +66,31 @@ expect.extend({
       };
     }
 
-    // const { snapshotState } = this;
-    // // @ts-expect-error we NEED this field
-    // const isUpdate = snapshotState._updateSnapshot === "all";
-    //
-    // const content = await fs.readdir(received, { recursive: true });
-    //
-    // console.log(content);
+    const directorySnapshotPath = createHash("sha256")
+      .update(`${testPath}/${currentTestName}`)
+      .digest("hex");
+
+    // @ts-expect-error we NEED this field
+    const isUpdate = snapshotState._updateSnapshot === "all";
+
+    if (isUpdate) {
+      const snapshotPath = join(
+        dirname(testPath),
+        snapshotDirName,
+        directorySnapshotPath,
+      );
+      fs.mkdirSync(snapshotPath, { recursive: true });
+      const receiverDir = fs.readdirSync(received);
+      for (const file of receiverDir) {
+        const filePath = join(received, file);
+        fs.copyFileSync(filePath, join(snapshotPath, file));
+      }
+
+      return {
+        pass: true,
+        message: () => `snapshot created`,
+      };
+    }
 
     return {
       pass: true,
