@@ -3,6 +3,7 @@ import { isAbsolute, join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { expect } from "vitest";
 import { copyDirectory } from "./copyDirectory.js";
+import { compareDirectories } from "./compareDirectories.js";
 
 const snapshotDirName = "__dir_snapshots__";
 
@@ -10,6 +11,14 @@ expect.extend({
   toMatchDirSnapshot: function (received: unknown) {
     const { snapshotState, isNot, testPath, currentTestName } =
       expect.getState();
+
+    if (isNot) {
+      return {
+        // true because we don't support .not
+        pass: true,
+        message: () => `.not for toMatchDirSnapshot is not supported`,
+      };
+    }
 
     if (!testPath) {
       return {
@@ -22,14 +31,6 @@ expect.extend({
       return {
         pass: false,
         message: () => `currentTestName is not defined`,
-      };
-    }
-
-    if (isNot) {
-      return {
-        // true because we don't support .not
-        pass: true,
-        message: () => `.not for toMatchDirSnapshot is not supported`,
       };
     }
 
@@ -81,6 +82,16 @@ expect.extend({
       return {
         pass: true,
         message: () => `snapshot created`,
+      };
+    }
+
+    try {
+      compareDirectories(received, snapshotPath);
+    } catch (error) {
+      return {
+        pass: false,
+        // @ts-expect-error
+        message: () => error.message,
       };
     }
 

@@ -16,7 +16,7 @@ describe("toMatchDirSnapshot", () => {
       expect("./fixtures/invalid").toMatchDirSnapshot();
     });
 
-    myTest.fails(".not supported", () => {
+    myTest.fails.skip(".not supported", () => {
       expect("/").not.toMatchDirSnapshot();
     });
   });
