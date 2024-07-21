@@ -6,3 +6,5 @@ setupTest.ts
 tsconfig.json
 vitest.config.ts
 copyTypesToDist.mjs
+setupFile.ts
+vitest.config.mjs
