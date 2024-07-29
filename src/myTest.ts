@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 type Use<T> = (value: T) => Promise<void>;
-export async function tmpDir(_: unknown, use: Use<string>): Promise<void> {
+export async function tmpDir(
+  /* @preserve */
+  {}: any,
+  use: Use<string>,
+): Promise<void> {
   const tempdir = await fs.mkdtemp(join(tmpdir(), "foo-"));
 
   await use(tempdir);
