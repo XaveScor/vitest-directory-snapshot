@@ -1,18 +1,15 @@
 {
   "name": "vitest-directory-snapshot",
   "version": "0.2.2",
-  "description": "",
-  "module": "./dist/index.module.mjs",
-  "exports": "./dist/index.modern.mjs",
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.ts",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
   "type": "module",
   "scripts": {
     "test": "vitest",
-    "test:update-snapshots": "vitest -u",
-    "microbundle": "microbundle -f modern,esm,cjs",
-    "copy-types": "node ./copyTypesToDist.mjs",
-    "build": "rm -rf ./dist && pnpm run microbundle && pnpm run copy-types"
+    "build": "smartbundle"
   },
   "keywords": [],
   "author": "",
@@ -22,9 +19,9 @@
   },
   "devDependencies": {
     "fast-glob": "^3.3.2",
-    "microbundle": "^0.15.1",
-    "prettier": "^3.3.2",
-    "typescript": "^5.5.3",
-    "vitest": "^2.0.2"
+    "prettier": "^3.3.3",
+    "smartbundle": "^0.10.1",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
   }
 }
