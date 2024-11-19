@@ -1,6 +1,6 @@
 {
   "name": "vitest-directory-snapshot",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "exports": {
     ".": "./src/index.ts",
