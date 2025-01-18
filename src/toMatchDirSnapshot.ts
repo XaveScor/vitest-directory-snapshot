@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import { copyDirectory } from "./copyDirectory.js";
@@ -66,9 +66,11 @@ export function toMatchDirSnapshot(received: unknown) {
     };
   }
 
-  const testDirName = createHash("sha256")
-    .update(`${testPath}/${currentTestName}`)
-    .digest("hex");
+  const localTestPath = relative(process.cwd(), testPath);
+  const safeCurrentTestName = currentTestName.replace(/\W+/g, "-");
+  const testDirName = safeCurrentTestName + '-' + createHash("sha256")
+    .update(join(localTestPath, currentTestName))
+    .digest("hex").slice(0, 8);
 
   // @ts-expect-error we NEED this field
   const isUpdate = snapshotState._updateSnapshot === "all";
