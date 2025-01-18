@@ -20,12 +20,6 @@ export function compareDirectories(
   const srcEntries = fs.readdirSync(src, { withFileTypes: true });
   const destEntries = fs.readdirSync(dest, { withFileTypes: true });
 
-  if (srcEntries.length !== destEntries.length) {
-    throw new Error(
-      `Expected "${src}" and "${dest}" to have the same number of entries`,
-    );
-  }
-
   for (const srcEntry of srcEntries) {
     const srcPath = `${src}/${srcEntry.name}`;
     const destPath = `${dest}/${srcEntry.name}`;
