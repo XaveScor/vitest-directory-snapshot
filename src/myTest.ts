@@ -1,4 +1,4 @@
-import { it, TestAPI } from "vitest";
+import { it, type TestAPI } from "vitest";
 import * as fs from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

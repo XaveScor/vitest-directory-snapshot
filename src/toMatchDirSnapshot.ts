@@ -5,13 +5,12 @@ import { createHash } from "node:crypto";
 import { copyDirectory } from "./copyDirectory.js";
 import { compareDirectories } from "./compareDirectories.js";
 
-const snapshotDirName = "__dir_snapshots__";
-
 export function createToMatchDirSnapshot(
-  options: { snapshotDirName?: string } = {}
+  options: { snapshotDirName?: string } = {},
 ) {
   return function toMatchDirSnapshot(received: unknown) {
-    const { snapshotState, isNot, testPath, currentTestName } = expect.getState();
+    const { snapshotState, isNot, testPath, currentTestName } =
+      expect.getState();
 
     if (isNot) {
       return {
@@ -71,16 +70,23 @@ export function createToMatchDirSnapshot(
 
     const localTestPath = relative(process.cwd(), testPath);
     const safeCurrentTestName = currentTestName.replace(/\W+/g, "-");
-    const testDirName = safeCurrentTestName + '-' + createHash("sha256")
-      .update(join(localTestPath, currentTestName))
-      .digest("hex").slice(0, 8);
+    const testDirName =
+      safeCurrentTestName +
+      "-" +
+      createHash("sha256")
+        .update(join(localTestPath, currentTestName))
+        .digest("hex")
+        .slice(0, 8);
 
     // @ts-expect-error we NEED this field
     const isUpdate = snapshotState._updateSnapshot === "all";
 
-    const snapshotDirName = options.snapshotDirName || process.env.VITEST_DIR_SNAPSHOT_DIR || "__dir_snapshots__";
+    const snapshotDirName =
+      options.snapshotDirName ||
+      process.env.VITEST_DIR_SNAPSHOT_DIR ||
+      "__dir_snapshots__";
     const snapshotPath = join(dirname(testPath), snapshotDirName, testDirName);
-    
+
     if (isUpdate) {
       copyDirectory(received, snapshotPath);
 
