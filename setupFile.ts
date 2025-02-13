@@ -1,6 +1,6 @@
 import { expect } from "vitest";
-import { toMatchDirSnapshot } from "./src/index.js";
+import { createToMatchDirSnapshot } from "./src/toMatchDirSnapshot.js";
 
 expect.extend({
-  toMatchDirSnapshot,
+  toMatchDirSnapshot: createToMatchDirSnapshot(),
 });
