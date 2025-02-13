@@ -34,3 +34,17 @@ The package "vitest-directory-snapshot" exposes the following public API:
         expect("/absolute/path/to/directory").toMatchDirSnapshot();
       });
     });
+
+#### Matcher Initialization
+
+To register the custom matcher in Vitest, add a setup file (e.g. `setupFile.ts`) with the following content:
+
+```ts
+import { createToMatchDirSnapshot } from "vitest-directory-snapshot";
+
+expect.extend({
+  toMatchDirSnapshot: createToMatchDirSnapshot({ snapshotDirName: "custom_snapshots" }),
+});
+```
+
+You can also configure the custom snapshot directory name by setting the environment variable `VITEST_DIR_SNAPSHOT_DIR` when running tests.
