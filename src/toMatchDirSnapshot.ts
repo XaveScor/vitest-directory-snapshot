@@ -37,7 +37,7 @@ export function createToMatchDirSnapshot(
     if (typeof received !== "string") {
       return {
         pass: false,
-        message: () => `Expected "${received}" to be a string`,
+        message: () => `Expected received value to be a string path, but got ${typeof received}${received === null ? '' : ` (value: ${JSON.stringify(received)})`}`,
         expected: "string",
         received: typeof received,
       };
@@ -46,24 +46,36 @@ export function createToMatchDirSnapshot(
     if (!isAbsolute(received)) {
       return {
         pass: false,
-        message: () => `Expected "${received}" to be an absolute path`,
+        message: () => `Expected path to be absolute, but received relative path: "${received}". Use an absolute path like "/full/path/to/directory"`,
       };
     }
 
     let lstats: fs.Stats;
     try {
       lstats = fs.lstatSync(received);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        return {
+          pass: false,
+          message: () => `Directory "${received}" does not exist. Check the path and ensure the directory exists before running the test.`,
+        };
+      } else if (error.code === 'EACCES') {
+        return {
+          pass: false,
+          message: () => `Permission denied accessing "${received}". Check directory permissions.`,
+        };
+      }
       return {
         pass: false,
-        message: () => `Expected "${received}" to be a directory`,
+        message: () => `Failed to access "${received}": ${error.message}`,
       };
     }
 
     if (!lstats.isDirectory()) {
+      const fileType = lstats.isFile() ? 'file' : lstats.isSymbolicLink() ? 'symbolic link' : 'special file';
       return {
         pass: false,
-        message: () => `Expected "${received}" to be a directory`,
+        message: () => `Expected "${received}" to be a directory, but it's a ${fileType}`,
         expected: received,
       };
     }
@@ -98,11 +110,10 @@ export function createToMatchDirSnapshot(
 
     try {
       compareDirectories(received, snapshotPath);
-    } catch (error) {
+    } catch (error: any) {
       return {
         pass: false,
-        // @ts-expect-error
-        message: () => error.message,
+        message: () => `Directory snapshot comparison failed:\n\n${error.message}`,
       };
     }
 

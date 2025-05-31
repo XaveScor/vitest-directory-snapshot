@@ -1,0 +1,3 @@
+Hello world
+This is a simple text file
+Line 3
