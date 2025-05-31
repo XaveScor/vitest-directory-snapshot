@@ -1,32 +1,37 @@
 import * as fs from "node:fs";
+import { join } from "node:path";
+import { validatePath } from "./pathSafety.js";
 
 export function compareDirectories(
   src: string,
   dest: string,
   skipDirChecks = false,
 ) {
+  // Validate and normalize paths
+  const safeSrc = validatePath(src);
+  const safeDest = validatePath(dest);
   if (!skipDirChecks) {
-    const srcStats = fs.lstatSync(src);
+    const srcStats = fs.lstatSync(safeSrc);
     if (!srcStats.isDirectory()) {
-      throw new Error(`Expected "${src}" to be a directory`);
+      throw new Error(`Expected "${safeSrc}" to be a directory`);
     }
 
-    const destStats = fs.lstatSync(dest);
+    const destStats = fs.lstatSync(safeDest);
     if (!destStats.isDirectory()) {
-      throw new Error(`Expected "${dest}" to be a directory`);
+      throw new Error(`Expected "${safeDest}" to be a directory`);
     }
   }
 
-  const srcEntries = fs.readdirSync(src, { withFileTypes: true });
-  const destEntries = fs.readdirSync(dest, { withFileTypes: true });
+  const srcEntries = fs.readdirSync(safeSrc, { withFileTypes: true });
+  const destEntries = fs.readdirSync(safeDest, { withFileTypes: true });
 
   for (const srcEntry of srcEntries) {
-    const srcPath = `${src}/${srcEntry.name}`;
-    const destPath = `${dest}/${srcEntry.name}`;
+    const srcPath = join(safeSrc, srcEntry.name);
+    const destPath = join(safeDest, srcEntry.name);
 
     const destEntry = destEntries.find((entry) => entry.name === srcEntry.name);
     if (!destEntry) {
-      throw new Error(`Expected "${srcPath}" to exist in "${dest}"`);
+      throw new Error(`Expected "${srcPath}" to exist in "${safeDest}"`);
     }
 
     if (srcEntry.isDirectory()) {

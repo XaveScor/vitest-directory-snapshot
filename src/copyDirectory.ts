@@ -1,15 +1,20 @@
 import * as fs from "node:fs";
-import {join} from "node:path";
+import { join } from "node:path";
+import { validatePath } from "./pathSafety.js";
 
 export function copyDirectory(src: string, dest: string) {
-  fs.mkdirSync(dest, { recursive: true });
+  // Validate and normalize paths
+  const safeSrc = validatePath(src);
+  const safeDest = validatePath(dest);
+  
+  fs.mkdirSync(safeDest, { recursive: true });
 
-  const entries = fs.readdirSync(src, { withFileTypes: true });
+  const entries = fs.readdirSync(safeSrc, { withFileTypes: true });
   // Keep empty directories in git
-  fs.writeFileSync(join(dest, ".gitkeep"), "");
+  fs.writeFileSync(join(safeDest, ".gitkeep"), "");
   for (const entry of entries) {
-    const srcPath = `${src}/${entry.name}`;
-    const destPath = `${dest}/${entry.name}`;
+    const srcPath = join(safeSrc, entry.name);
+    const destPath = join(safeDest, entry.name);
 
     if (entry.isDirectory()) {
       copyDirectory(srcPath, destPath);
