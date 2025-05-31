@@ -30,16 +30,6 @@ export function copyDirectory(src: string, dest: string) {
     throw new Error(`Failed to read source directory "${safeSrc}": ${error.message}`);
   }
   
-  // Keep empty directories in git
-  try {
-    fs.writeFileSync(join(safeDest, ".gitkeep"), "");
-  } catch (error: any) {
-    if (error.code === 'EACCES') {
-      throw new Error(`Permission denied creating .gitkeep file in "${safeDest}"`);
-    }
-    throw new Error(`Failed to create .gitkeep file in "${safeDest}": ${error.message}`);
-  }
-  
   for (const entry of entries) {
     const srcPath = join(safeSrc, entry.name);
     const destPath = join(safeDest, entry.name);
@@ -57,6 +47,18 @@ export function copyDirectory(src: string, dest: string) {
         }
         throw new Error(`Failed to copy file "${srcPath}" to "${destPath}": ${error.message}`);
       }
+    }
+  }
+  
+  // Keep empty directories in git - only add .gitkeep if directory is empty
+  if (entries.length === 0) {
+    try {
+      fs.writeFileSync(join(safeDest, ".gitkeep"), "");
+    } catch (error: any) {
+      if (error.code === 'EACCES') {
+        throw new Error(`Permission denied creating .gitkeep file in "${safeDest}"`);
+      }
+      throw new Error(`Failed to create .gitkeep file in "${safeDest}": ${error.message}`);
     }
   }
 }
