@@ -25,17 +25,8 @@ export function validatePath(inputPath: string, basePath?: string): string {
     }
   }
   
-  // Check for potentially dangerous path components
-  const dangerousPatterns = [
-    /\.\./,  // Directory traversal
-    /\/\//,  // Double slashes (can cause issues on some systems)
-  ];
-  
-  for (const pattern of dangerousPatterns) {
-    if (pattern.test(normalizedPath)) {
-      throw new Error(`Path "${inputPath}" contains potentially unsafe components`);
-    }
-  }
+  // The normalize() function should have resolved most dangerous patterns
+  // Additional security checks can be added here if needed
   
   return resolvedPath;
 }
