@@ -1,10 +1,12 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { compareDirectories } from "./compareDirectories.js";
 import { copyDirectory } from "./copyDirectory.js";
 import { myTest } from "./myTest.js";
+
+const fixturesDir = resolve(import.meta.dirname, "fixtures");
 
 describe("error handling", () => {
   let testDir: string;
@@ -45,15 +47,8 @@ describe("error handling", () => {
     });
 
     it("should detect type mismatches", () => {
-      const srcPath = join(testDir, "src");
-      const destPath = join(testDir, "dest");
-      
-      fs.mkdirSync(srcPath);
-      fs.mkdirSync(destPath);
-      
-      // Create a file in src but directory in dest
-      fs.writeFileSync(join(srcPath, "item"), "content");
-      fs.mkdirSync(join(destPath, "item"));
+      const srcPath = resolve(fixturesDir, "directories/src-type-mismatch");
+      const destPath = resolve(fixturesDir, "directories/dest-type-mismatch");
 
       expect(() => compareDirectories(srcPath, destPath)).toThrowErrorMatchingInlineSnapshot(
         `[Error: Type mismatch: "item" is a file in source but a directory in snapshot]`
@@ -61,15 +56,8 @@ describe("error handling", () => {
     });
 
     it("should show available files when file is missing from snapshot", () => {
-      const srcPath = join(testDir, "src");
-      const destPath = join(testDir, "dest");
-      
-      fs.mkdirSync(srcPath);
-      fs.mkdirSync(destPath);
-      
-      fs.writeFileSync(join(srcPath, "missing.txt"), "content");
-      fs.writeFileSync(join(destPath, "existing1.txt"), "content");
-      fs.writeFileSync(join(destPath, "existing2.txt"), "content");
+      const srcPath = resolve(fixturesDir, "directories/src");
+      const destPath = resolve(fixturesDir, "directories/dest-missing-file");
 
       expect(() => compareDirectories(srcPath, destPath)).toThrowErrorMatchingInlineSnapshot(
         `[Error: File/directory "missing.txt" exists in source but not in snapshot. Available in snapshot: existing1.txt, existing2.txt. Run tests with --update-snapshots to update.]`
@@ -77,14 +65,8 @@ describe("error handling", () => {
     });
 
     it("should provide detailed diff when file contents differ", () => {
-      const srcPath = join(testDir, "src");
-      const destPath = join(testDir, "dest");
-      
-      fs.mkdirSync(srcPath);
-      fs.mkdirSync(destPath);
-      
-      fs.writeFileSync(join(srcPath, "file.txt"), "line1\nline2\nline3");
-      fs.writeFileSync(join(destPath, "file.txt"), "line1\nmodified\nline3");
+      const srcPath = resolve(fixturesDir, "directories/file-content-diff");
+      const destPath = resolve(fixturesDir, "directories/file-content-diff-dest");
 
       expect(() => compareDirectories(srcPath, destPath)).toThrow(
         'File content differs:'

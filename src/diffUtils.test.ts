@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
+import { resolve } from "node:path";
+import * as fs from "node:fs";
 import { createContentDiff } from "./diffUtils.js";
+
+const fixturesDir = resolve(import.meta.dirname, "fixtures");
 
 describe("diffUtils", () => {
   describe("createContentDiff", () => {
     it("should create diff for different content", () => {
-      const actual = "line1\nline2\nline3";
-      const expected = "line1\nmodified line2\nline3";
-      const actualPath = "/path/to/actual.txt";
-      const expectedPath = "/path/to/expected.txt";
+      const actualPath = resolve(fixturesDir, "text-files/simple.txt");
+      const expectedPath = resolve(fixturesDir, "text-files/simple-modified.txt");
+      
+      const actual = fs.readFileSync(actualPath, "utf8");
+      const expected = fs.readFileSync(expectedPath, "utf8");
 
       const diff = createContentDiff(
         actual,
@@ -18,23 +23,24 @@ describe("diffUtils", () => {
 
       expect(diff).toMatchInlineSnapshot(`
         "Content differs between files:
-          Actual:   /path/to/actual.txt
-          Expected: /path/to/expected.txt
+          Actual:   ${actualPath}
+          Expected: ${expectedPath}
 
-            1: line1
-        -   2: line2
-        +   2: modified line2
-            3: line3
+            1: Hello world
+        -   2: This is a simple text file
+        +   2: This is a modified text file
+            3: Line 3
 
         Lines in actual: 3, Lines in expected: 3"
       `);
     });
 
     it("should handle files with different line counts", () => {
-      const actual = "line1\nline2";
-      const expected = "line1\nline2\nline3\nline4";
-      const actualPath = "/actual.txt";
-      const expectedPath = "/expected.txt";
+      const actualPath = resolve(fixturesDir, "text-files/line-count-short.txt");
+      const expectedPath = resolve(fixturesDir, "text-files/line-count-long.txt");
+      
+      const actual = fs.readFileSync(actualPath, "utf8");
+      const expected = fs.readFileSync(expectedPath, "utf8");
 
       const diff = createContentDiff(
         actual,
@@ -45,8 +51,8 @@ describe("diffUtils", () => {
 
       expect(diff).toMatchInlineSnapshot(`
         "Content differs between files:
-          Actual:   /actual.txt
-          Expected: /expected.txt
+          Actual:   ${actualPath}
+          Expected: ${expectedPath}
 
             1: line1
             2: line2
@@ -60,10 +66,11 @@ describe("diffUtils", () => {
     });
 
     it("should show context around differences", () => {
-      const actual = "line1\nline2\nline3\nline4\nline5\nline6\nline7";
-      const expected = "line1\nline2\nline3\nmodified\nline5\nline6\nline7";
-      const actualPath = "/actual.txt";
-      const expectedPath = "/expected.txt";
+      const actualPath = resolve(fixturesDir, "text-files/multiline-diff.txt");
+      const expectedPath = resolve(fixturesDir, "text-files/multiline-diff-modified.txt");
+      
+      const actual = fs.readFileSync(actualPath, "utf8");
+      const expected = fs.readFileSync(expectedPath, "utf8");
 
       const diff = createContentDiff(
         actual,
@@ -74,8 +81,8 @@ describe("diffUtils", () => {
 
       expect(diff).toMatchInlineSnapshot(`
         "Content differs between files:
-          Actual:   /actual.txt
-          Expected: /expected.txt
+          Actual:   ${actualPath}
+          Expected: ${expectedPath}
 
             1: line1
             2: line2
@@ -91,10 +98,11 @@ describe("diffUtils", () => {
     });
 
     it("should handle missing lines", () => {
-      const actual = "line1\nline3";
-      const expected = "line1\nline2\nline3";
-      const actualPath = "/actual.txt";
-      const expectedPath = "/expected.txt";
+      const actualPath = resolve(fixturesDir, "text-files/missing-lines.txt");
+      const expectedPath = resolve(fixturesDir, "text-files/missing-lines-complete.txt");
+      
+      const actual = fs.readFileSync(actualPath, "utf8");
+      const expected = fs.readFileSync(expectedPath, "utf8");
 
       const diff = createContentDiff(
         actual,
@@ -105,8 +113,8 @@ describe("diffUtils", () => {
 
       expect(diff).toMatchInlineSnapshot(`
         "Content differs between files:
-          Actual:   /actual.txt
-          Expected: /expected.txt
+          Actual:   ${actualPath}
+          Expected: ${expectedPath}
 
             1: line1
         -   2: line3
@@ -119,10 +127,11 @@ describe("diffUtils", () => {
     });
 
     it("should handle empty files", () => {
-      const actual = "";
-      const expected = "content";
-      const actualPath = "/actual.txt";
-      const expectedPath = "/expected.txt";
+      const actualPath = resolve(fixturesDir, "text-files/empty.txt");
+      const expectedPath = resolve(fixturesDir, "text-files/single-line.txt");
+      
+      const actual = fs.readFileSync(actualPath, "utf8");
+      const expected = fs.readFileSync(expectedPath, "utf8");
 
       const diff = createContentDiff(
         actual,
@@ -133,8 +142,8 @@ describe("diffUtils", () => {
 
       expect(diff).toMatchInlineSnapshot(`
         "Content differs between files:
-          Actual:   /actual.txt
-          Expected: /expected.txt
+          Actual:   ${actualPath}
+          Expected: ${expectedPath}
 
         +   1: content
         -   1: <missing line>

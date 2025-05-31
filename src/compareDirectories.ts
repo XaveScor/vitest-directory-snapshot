@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import { join } from "node:path";
 import { validatePath } from "./pathSafety.js";
 import { createContentDiff } from "./diffUtils.js";
+import { compareFilesEfficiently } from "./fileUtils.js";
 
 export function compareDirectories(
   src: string,
@@ -66,11 +67,17 @@ export function compareDirectories(
     throw new Error(`Failed to read snapshot directory "${safeDest}": ${error.message}`);
   }
 
+  // Create a map for O(1) lookup instead of O(n) find operation
+  const destEntryMap = new Map<string, fs.Dirent>();
+  for (const entry of destEntries) {
+    destEntryMap.set(entry.name, entry);
+  }
+
   for (const srcEntry of srcEntries) {
     const srcPath = join(safeSrc, srcEntry.name);
     const destPath = join(safeDest, srcEntry.name);
 
-    const destEntry = destEntries.find((entry) => entry.name === srcEntry.name);
+    const destEntry = destEntryMap.get(srcEntry.name);
     if (!destEntry) {
       const availableFiles = destEntries.map(entry => entry.name).sort();
       const fileCount = availableFiles.length;
@@ -88,34 +95,50 @@ export function compareDirectories(
         throw new Error(`Type mismatch: "${srcEntry.name}" is a file in source but a ${destEntry.isDirectory() ? 'directory' : 'special item'} in snapshot`);
       }
       
-      let srcContent: string;
-      let destContent: string;
-      
       try {
-        srcContent = fs.readFileSync(srcPath, "utf8");
-      } catch (error: any) {
-        if (error.code === 'EACCES') {
-          throw new Error(`Permission denied reading file "${srcPath}"`);
-        } else if (error.code === 'EISDIR') {
-          throw new Error(`Expected "${srcPath}" to be a file but it's a directory`);
-        }
-        throw new Error(`Failed to read file "${srcPath}": ${error.message}`);
-      }
-      
-      try {
-        destContent = fs.readFileSync(destPath, "utf8");
-      } catch (error: any) {
-        if (error.code === 'EACCES') {
-          throw new Error(`Permission denied reading snapshot file "${destPath}"`);
-        } else if (error.code === 'EISDIR') {
-          throw new Error(`Expected "${destPath}" to be a file but it's a directory`);
-        }
-        throw new Error(`Failed to read snapshot file "${destPath}": ${error.message}`);
-      }
+        // Try efficient comparison first (handles binary files and large files)
+        const result = compareFilesEfficiently(srcPath, destPath);
+        
+        // If it needs detailed diff (small text files), do content comparison
+        if (result.needsDetailedDiff) {
+          let srcContent: string;
+          let destContent: string;
+          
+          try {
+            srcContent = fs.readFileSync(srcPath, "utf8");
+          } catch (readError: any) {
+            if (readError.code === 'EACCES') {
+              throw new Error(`Permission denied reading file "${srcPath}"`);
+            } else if (readError.code === 'EISDIR') {
+              throw new Error(`Expected "${srcPath}" to be a file but it's a directory`);
+            }
+            throw new Error(`Failed to read file "${srcPath}": ${readError.message}`);
+          }
+          
+          try {
+            destContent = fs.readFileSync(destPath, "utf8");
+          } catch (readError: any) {
+            if (readError.code === 'EACCES') {
+              throw new Error(`Permission denied reading snapshot file "${destPath}"`);
+            } else if (readError.code === 'EISDIR') {
+              throw new Error(`Expected "${destPath}" to be a file but it's a directory`);
+            }
+            throw new Error(`Failed to read snapshot file "${destPath}": ${readError.message}`);
+          }
 
-      if (srcContent !== destContent) {
-        const diff = createContentDiff(srcContent, destContent, srcPath, destPath);
-        throw new Error(`File content differs:\n\n${diff}\n\nRun tests with --update-snapshots to update the snapshot.`);
+          if (srcContent !== destContent) {
+            const diff = createContentDiff(srcContent, destContent, srcPath, destPath);
+            throw new Error(`File content differs:\n\n${diff}\n\nRun tests with --update-snapshots to update the snapshot.`);
+          }
+        }
+      } catch (error: any) {
+        // If it's a binary or large file difference, re-throw with additional context
+        if (error.message.includes('Binary files differ') || error.message.includes('Large files differ') || error.message.includes('File type mismatch')) {
+          throw new Error(`${error.message}\n\nRun tests with --update-snapshots to update the snapshot.`);
+        }
+        
+        // Re-throw other errors as-is
+        throw error;
       }
     }
   }

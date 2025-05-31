@@ -39,3 +39,22 @@ This is a Vitest plugin that enables directory snapshot testing. The core archit
 - **Entry point**: `src/index.ts` exports the public API
 - **Types**: Available at `./types` export
 - **Setup**: `setupFile.ts` registers the matcher for this project's tests
+
+## Performance Optimizations
+
+The library includes several performance optimizations for handling large directories and files:
+
+### **File Lookup Optimization**
+- Uses `Map` for O(1) file lookup instead of O(n²) array.find operations
+- Significantly improves performance for directories with many files
+
+### **Smart File Comparison**
+- **Binary file detection**: Automatically detects binary files using null byte checking
+- **Hash-based comparison**: Uses SHA-256 checksums for binary files and large files (>10MB)
+- **Streaming threshold**: Large files use streaming to avoid memory issues
+- **Detailed diffs**: Small text files still get line-by-line diff output for debugging
+
+### **Error Handling**
+- Enhanced filesystem error handling with specific error codes (ENOENT, EACCES, etc.)
+- Detailed error messages with actionable advice
+- Path safety validation to prevent directory traversal attacks
