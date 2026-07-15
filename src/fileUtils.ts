@@ -1,97 +1,91 @@
 import * as fs from "node:fs";
-import { createHash } from "node:crypto";
 
-// File size threshold for using streaming (10MB)
 const STREAMING_THRESHOLD = 10 * 1024 * 1024;
+const COMPARISON_BUFFER_SIZE = 64 * 1024;
 
-// Buffer size for checking if file is binary (first 8KB)
-const BINARY_CHECK_SIZE = 8192;
+export function compareFilesEfficiently(
+  srcPath: string,
+  destPath: string,
+): { needsDetailedDiff: boolean } {
+  const srcStats = fs.statSync(srcPath);
+  const destStats = fs.statSync(destPath);
+  const isLarge =
+    srcStats.size > STREAMING_THRESHOLD || destStats.size > STREAMING_THRESHOLD;
 
-export function isBinaryFile(filePath: string): boolean {
-  try {
-    const buffer = Buffer.alloc(BINARY_CHECK_SIZE);
-    const fd = fs.openSync(filePath, 'r');
-    const bytesRead = fs.readSync(fd, buffer, 0, BINARY_CHECK_SIZE, 0);
-    fs.closeSync(fd);
-    
-    // Check for null bytes which indicate binary content
-    for (let i = 0; i < bytesRead; i++) {
-      if (buffer[i] === 0) {
-        return true;
-      }
-    }
-    
-    return false;
-  } catch {
-    // If we can't read the file, assume it's binary to be safe
-    return true;
-  }
-}
-
-export function getFileHash(filePath: string): Promise<string> {
-  const hash = createHash('sha256');
-  const stream = fs.createReadStream(filePath);
-  
-  return new Promise<string>((resolve, reject) => {
-    stream.on('data', (chunk) => hash.update(chunk));
-    stream.on('end', () => resolve(hash.digest('hex')));
-    stream.on('error', reject);
-  });
-}
-
-export function getFileHashSync(filePath: string): string {
-  const hash = createHash('sha256');
-  const buffer = fs.readFileSync(filePath);
-  hash.update(buffer);
-  return hash.digest('hex');
-}
-
-export function shouldUseStreaming(filePath: string): boolean {
-  try {
-    const stats = fs.statSync(filePath);
-    return stats.size > STREAMING_THRESHOLD;
-  } catch {
-    return false;
-  }
-}
-
-export function compareFilesEfficiently(srcPath: string, destPath: string): { needsDetailedDiff: boolean } {
-  // Check if files are binary
-  const srcIsBinary = isBinaryFile(srcPath);
-  const destIsBinary = isBinaryFile(destPath);
-  
-  if (srcIsBinary !== destIsBinary) {
-    throw new Error(`File type mismatch: "${srcPath}" is ${srcIsBinary ? 'binary' : 'text'} but "${destPath}" is ${destIsBinary ? 'binary' : 'text'}`);
-  }
-  
-  // For binary files or large files, use hash comparison
-  if (srcIsBinary || shouldUseStreaming(srcPath) || shouldUseStreaming(destPath)) {
-    const srcHash = getFileHashSync(srcPath);
-    const destHash = getFileHashSync(destPath);
-    
-    if (srcHash !== destHash) {
-      if (srcIsBinary) {
-        throw new Error(`Binary files differ: "${srcPath}" and "${destPath}" have different content`);
-      } else {
-        throw new Error(`Large files differ: "${srcPath}" and "${destPath}" have different content. Use a diff tool to compare.`);
-      }
+  if (isLarge) {
+    if (
+      srcStats.size !== destStats.size ||
+      !compareLargeFilesByBytes(srcPath, destPath)
+    ) {
+      throw new Error(
+        `Large files differ: "${srcPath}" and "${destPath}" have different content. Use a diff tool to compare.`,
+      );
     }
     return { needsDetailedDiff: false };
   }
-  
-  // For small text files, indicate that detailed diff is needed
-  return { needsDetailedDiff: true };
+
+  const srcContent = fs.readFileSync(srcPath);
+  const destContent = fs.readFileSync(destPath);
+
+  if (srcContent.equals(destContent)) {
+    return { needsDetailedDiff: false };
+  }
+
+  if (isUtf8Text(srcContent) && isUtf8Text(destContent)) {
+    return { needsDetailedDiff: true };
+  }
+
+  throw new Error(
+    `Binary files differ: "${srcPath}" and "${destPath}" have different content`,
+  );
 }
 
-export function getFileStats(filePath: string) {
+function compareLargeFilesByBytes(srcPath: string, destPath: string): boolean {
+  const srcDescriptor = fs.openSync(srcPath, "r");
+  let destDescriptor: number | undefined;
+
   try {
-    const stats = fs.statSync(filePath);
-    return {
-      size: stats.size,
-      isBinary: isBinaryFile(filePath),
-      shouldStream: stats.size > STREAMING_THRESHOLD
-    };
-  } catch (error: any) {
-    throw new Error(`Failed to get file stats for "${filePath}": ${error.message}`);
+    destDescriptor = fs.openSync(destPath, "r");
+    const srcBuffer = Buffer.allocUnsafe(COMPARISON_BUFFER_SIZE);
+    const destBuffer = Buffer.allocUnsafe(COMPARISON_BUFFER_SIZE);
+
+    while (true) {
+      const srcBytesRead = fs.readSync(
+        srcDescriptor,
+        srcBuffer,
+        0,
+        srcBuffer.length,
+        null,
+      );
+      const destBytesRead = fs.readSync(
+        destDescriptor,
+        destBuffer,
+        0,
+        destBuffer.length,
+        null,
+      );
+
+      if (srcBytesRead !== destBytesRead) return false;
+      if (srcBytesRead === 0) return true;
+      if (
+        !srcBuffer
+          .subarray(0, srcBytesRead)
+          .equals(destBuffer.subarray(0, destBytesRead))
+      ) {
+        return false;
+      }
+    }
+  } finally {
+    fs.closeSync(srcDescriptor);
+    if (destDescriptor !== undefined) {
+      fs.closeSync(destDescriptor);
+    }
   }
+}
+
+function isUtf8Text(content: Buffer): boolean {
+  return (
+    !content.includes(0) &&
+    Buffer.from(content.toString("utf8"), "utf8").equals(content)
+  );
 }

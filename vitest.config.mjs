@@ -8,7 +8,6 @@ export default defineConfig(async () => {
     viteConfig,
     defineConfig({
       test: {
-        globals: true,
         setupFiles: ["./setupFile.ts"],
         typecheck: {
           enabled: true,

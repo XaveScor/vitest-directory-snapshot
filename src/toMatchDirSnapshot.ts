@@ -1,125 +1,266 @@
-import { expect } from "vitest";
-import { dirname, isAbsolute, join, relative } from "node:path";
-import fs from "node:fs";
+import * as fs from "node:fs";
 import { createHash } from "node:crypto";
-import { copyDirectory } from "./copyDirectory.js";
+import { basename, dirname, isAbsolute, join } from "node:path";
+import type { MatcherState } from "vitest";
 import { compareDirectories } from "./compareDirectories.js";
+import { copyDirectory } from "./copyDirectory.js";
+import {
+  assertNoSymlinkComponents,
+  assertSafeDirectoryName,
+} from "./pathSafety.js";
+
+const MULTIPLE_INVOCATIONS_HINT_ERROR =
+  "When toMatchDirSnapshot() is called multiple times in one test, all invocations must have a unique hint";
+
+export interface DirectorySnapshotOptions {
+  snapshotDirectoryName?: string;
+}
+
+export type DirectorySnapshotMatcher = (
+  this: MatcherState,
+  received: unknown,
+  hint?: string,
+) => DirectorySnapshotResult;
+
+interface DirectorySnapshotResult {
+  pass: boolean;
+  message: () => string;
+}
 
 export function createToMatchDirSnapshot(
-  options: { snapshotDirName?: string } = {},
-) {
-  return function toMatchDirSnapshot(received: unknown) {
-    const { snapshotState, isNot, testPath, currentTestName } =
-      expect.getState();
+  options: DirectorySnapshotOptions = {},
+): DirectorySnapshotMatcher {
+  const invocationsByTest = new WeakMap<object, TestInvocations>();
 
-    if (isNot) {
+  return function toMatchDirSnapshot(
+    this: MatcherState,
+    received: unknown,
+    hint?: string,
+  ): DirectorySnapshotResult {
+    if (this.isNot) {
       return {
-        // true because we don't support .not
         pass: true,
-        message: () => `.not for toMatchDirSnapshot is not supported`,
+        message: () => ".not.toMatchDirSnapshot() is not supported",
       };
     }
 
-    if (!testPath) {
+    if (!this.testPath || !this.currentTestName) {
       return {
         pass: false,
-        message: () => `testPath is not defined`,
-      };
-    }
-
-    if (!currentTestName) {
-      return {
-        pass: false,
-        message: () => `currentTestName is not defined`,
+        message: () =>
+          "toMatchDirSnapshot() must be called from a running test",
       };
     }
 
     if (typeof received !== "string") {
       return {
         pass: false,
-        message: () => `Expected received value to be a string path, but got ${typeof received}${received === null ? '' : ` (value: ${JSON.stringify(received)})`}`,
-        expected: "string",
-        received: typeof received,
+        message: () =>
+          `Expected an absolute directory path, received ${formatReceived(received)}`,
       };
     }
 
     if (!isAbsolute(received)) {
       return {
         pass: false,
-        message: () => `Expected path to be absolute, but received relative path: "${received}". Use an absolute path like "/full/path/to/directory"`,
+        message: () =>
+          `Expected an absolute directory path, received "${received}"`,
       };
     }
 
-    let lstats: fs.Stats;
-    try {
-      lstats = fs.lstatSync(received);
-    } catch (error: any) {
-      if (error.code === 'ENOENT') {
+    if (
+      hint !== undefined &&
+      (typeof hint !== "string" || hint.trim() === "")
+    ) {
+      return {
+        pass: false,
+        message: () => "Directory snapshot hint must be a non-empty string",
+      };
+    }
+
+    const invocationError = registerInvocation(
+      invocationsByTest,
+      this.task,
+      hint,
+    );
+    if (invocationError) {
+      return { pass: false, message: () => invocationError };
+    }
+
+    const receivedValidation = validateReceivedDirectory(received);
+    if (receivedValidation) {
+      return { pass: false, message: () => receivedValidation };
+    }
+
+    const snapshotDirectoryName =
+      options.snapshotDirectoryName ??
+      process.env.VITEST_DIR_SNAPSHOT_DIR ??
+      "__dir_snapshots__";
+    assertSafeDirectoryName(snapshotDirectoryName);
+
+    const snapshotRoot = join(dirname(this.testPath), snapshotDirectoryName);
+    const snapshotPath = join(
+      snapshotRoot,
+      createSnapshotName(
+        this.task?.id ?? basename(this.testPath),
+        this.currentTestName,
+        hint,
+      ),
+    );
+    assertNoSymlinkComponents(snapshotPath, dirname(this.testPath));
+
+    const updateMode = this.snapshotState.snapshotUpdateState;
+    const snapshotExists = fs.existsSync(snapshotPath);
+    const shouldUpdate =
+      updateMode === "all" || (updateMode === "new" && !snapshotExists);
+
+    if (shouldUpdate) {
+      try {
+        copyDirectory(received, snapshotPath);
+      } catch (error: unknown) {
         return {
           pass: false,
-          message: () => `Directory "${received}" does not exist. Check the path and ensure the directory exists before running the test.`,
-        };
-      } else if (error.code === 'EACCES') {
-        return {
-          pass: false,
-          message: () => `Permission denied accessing "${received}". Check directory permissions.`,
+          message: () => formatError("Directory snapshot update failed", error),
         };
       }
-      return {
-        pass: false,
-        message: () => `Failed to access "${received}": ${error.message}`,
-      };
-    }
-
-    if (!lstats.isDirectory()) {
-      const fileType = lstats.isFile() ? 'file' : lstats.isSymbolicLink() ? 'symbolic link' : 'special file';
-      return {
-        pass: false,
-        message: () => `Expected "${received}" to be a directory, but it's a ${fileType}`,
-        expected: received,
-      };
-    }
-
-    const localTestPath = relative(process.cwd(), testPath);
-    const safeCurrentTestName = currentTestName.replace(/\W+/g, "-");
-    const testDirName =
-      safeCurrentTestName +
-      "-" +
-      createHash("sha256")
-        .update(join(localTestPath, currentTestName))
-        .digest("hex")
-        .slice(0, 8);
-
-    // @ts-expect-error we NEED this field
-    const isUpdate = snapshotState._updateSnapshot === "all";
-
-    const snapshotDirName =
-      options.snapshotDirName ||
-      process.env.VITEST_DIR_SNAPSHOT_DIR ||
-      "__dir_snapshots__";
-    const snapshotPath = join(dirname(testPath), snapshotDirName, testDirName);
-
-    if (isUpdate) {
-      copyDirectory(received, snapshotPath);
 
       return {
         pass: true,
-        message: () => `snapshot created`,
+        message: () => `Directory snapshot written to "${snapshotPath}"`,
       };
     }
 
     try {
       compareDirectories(received, snapshotPath);
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         pass: false,
-        message: () => `Directory snapshot comparison failed:\n\n${error.message}`,
+        message: () =>
+          formatError("Directory snapshot comparison failed", error),
       };
     }
 
     return {
       pass: true,
-      message: () => `ok`,
+      message: () =>
+        `Expected directory not to match snapshot "${snapshotPath}"`,
     };
   };
+}
+
+interface TestInvocations {
+  attempt: string;
+  hints: Set<string>;
+  hasUnhintedCall: boolean;
+  invalid: boolean;
+}
+
+function registerInvocation(
+  invocationsByTest: WeakMap<object, TestInvocations>,
+  task: MatcherState["task"],
+  hint: string | undefined,
+): string | undefined {
+  if (!task) {
+    return undefined;
+  }
+
+  const attempt = `${task.result?.retryCount ?? 0}:${task.result?.repeatCount ?? 0}`;
+  let invocations = invocationsByTest.get(task);
+  if (!invocations || invocations.attempt !== attempt) {
+    invocations = {
+      attempt,
+      hints: new Set<string>(),
+      hasUnhintedCall: false,
+      invalid: false,
+    };
+    invocationsByTest.set(task, invocations);
+  }
+
+  if (invocations.invalid) {
+    return MULTIPLE_INVOCATIONS_HINT_ERROR;
+  }
+
+  if (hint === undefined) {
+    if (invocations.hasUnhintedCall || invocations.hints.size > 0) {
+      invocations.invalid = true;
+      return MULTIPLE_INVOCATIONS_HINT_ERROR;
+    }
+    invocations.hasUnhintedCall = true;
+    return undefined;
+  }
+
+  if (invocations.hasUnhintedCall) {
+    invocations.invalid = true;
+    return MULTIPLE_INVOCATIONS_HINT_ERROR;
+  }
+
+  if (invocations.hints.has(hint)) {
+    invocations.invalid = true;
+    return `Directory snapshot hint "${hint}" must be unique within the test`;
+  }
+
+  invocations.hints.add(hint);
+  return undefined;
+}
+
+export const toMatchDirSnapshot = createToMatchDirSnapshot();
+
+function createSnapshotName(
+  testId: string,
+  testName: string,
+  hint?: string,
+): string {
+  const identity = [testId, hint ?? ""].join("\0");
+  const hash = createHash("sha256").update(identity).digest("hex").slice(0, 16);
+  const readableName = [testName, hint]
+    .filter(Boolean)
+    .join(" ")
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+
+  return `${readableName || "directory-snapshot"}-${hash}`;
+}
+
+function validateReceivedDirectory(path: string): string | undefined {
+  try {
+    const stats = fs.lstatSync(path);
+    if (!stats.isDirectory()) {
+      const type = stats.isFile()
+        ? "file"
+        : stats.isSymbolicLink()
+          ? "symbolic link"
+          : "special filesystem entry";
+      return `Expected "${path}" to be a directory, but it is a ${type}`;
+    }
+  } catch (error: unknown) {
+    if (isErrorWithCode(error) && error.code === "ENOENT") {
+      return `Directory "${path}" does not exist`;
+    }
+    return formatError(`Failed to access directory "${path}"`, error);
+  }
+
+  return undefined;
+}
+
+function formatReceived(received: unknown): string {
+  if (received === null) return "null";
+  if (typeof received === "string") return `"${received}"`;
+  if (typeof received === "bigint") return `${received}n`;
+  if (typeof received === "symbol") return received.toString();
+
+  try {
+    return `${typeof received} (${JSON.stringify(received)})`;
+  } catch {
+    return typeof received;
+  }
+}
+
+function formatError(prefix: string, error: unknown): string {
+  return `${prefix}:\n\n${error instanceof Error ? error.message : String(error)}`;
+}
+
+function isErrorWithCode(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }

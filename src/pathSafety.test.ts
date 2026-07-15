@@ -1,47 +1,65 @@
 import { describe, expect, it } from "vitest";
-import { validatePath } from "./pathSafety.js";
+import { join, parse, resolve } from "node:path";
+import {
+  assertPathsDoNotOverlap,
+  assertSafeDirectoryName,
+  validatePath,
+} from "./pathSafety.js";
 
-describe("pathSafety", () => {
-  describe("validatePath", () => {
-    it("should accept valid absolute paths", () => {
-      const result = validatePath("/valid/absolute/path");
-      expect(result).toMatch(/^\/.*valid.*absolute.*path/);
-    });
+describe("path safety", () => {
+  it("normalizes paths", () => {
+    expect(validatePath(join("some", ".", "path", "..", "other"))).toBe(
+      resolve("some", "other"),
+    );
+  });
 
-    it("should normalize paths with . and ..", () => {
-      const result = validatePath("/some/./path/../other");
-      expect(result).toBe("/some/other");
-    });
+  it("rejects empty paths", () => {
+    expect(() => validatePath("")).toThrow("Path cannot be empty");
+  });
 
-    it("should throw for empty paths", () => {
-      expect(() => validatePath("")).toThrow("Path cannot be empty");
-    });
+  it("accepts the base path and its children", () => {
+    const basePath = resolve("allowed", "base");
+    expect(validatePath(basePath, basePath)).toBe(basePath);
+    expect(validatePath(join(basePath, "child"), basePath)).toBe(
+      join(basePath, "child"),
+    );
+    expect(validatePath(join(basePath, "..evil"), basePath)).toBe(
+      join(basePath, "..evil"),
+    );
+  });
 
-    it("should allow normalized paths that resolve safely", () => {
-      // After normalization, "/valid/../../../etc/passwd" becomes "/etc/passwd" which is valid
-      const result = validatePath("/valid/../../../etc/passwd");
-      expect(result).toBe("/etc/passwd");
-    });
+  it("rejects paths outside the base", () => {
+    const root = parse(resolve("allowed")).root;
+    const basePath = join(root, "allowed", "base");
+    expect(() => validatePath(join(root, "outside"), basePath)).toThrow(
+      "resolves outside of allowed base path",
+    );
+  });
 
-    it("should allow paths with double slashes after normalization", () => {
-      // normalize() removes double slashes, so this should pass
-      const result = validatePath("/path//with//double//slashes");
-      expect(result).toBe("/path/with/double/slashes");
-    });
+  it("accepts only one safe snapshot directory component", () => {
+    expect(() => assertSafeDirectoryName("__snapshots__")).not.toThrow();
+    expect(() => assertSafeDirectoryName("../snapshots")).toThrow(
+      "single non-empty path component",
+    );
+    expect(() => assertSafeDirectoryName("a/b")).toThrow(
+      "single non-empty path component",
+    );
+  });
 
-    it("should validate against base path", () => {
-      const basePath = "/allowed/base";
-      expect(() => validatePath("/allowed/base/subdir", basePath)).not.toThrow();
-      expect(() => validatePath("/outside/path", basePath)).toThrow(
-        "resolves outside of allowed base path"
-      );
-    });
-
-    it("should prevent directory traversal with base path", () => {
-      const basePath = "/allowed/base";
-      expect(() => validatePath("/allowed/base/../../../etc", basePath)).toThrow(
-        "resolves outside of allowed base path"
-      );
-    });
+  it("detects equal and nested paths in either direction", () => {
+    const parent = resolve("parent");
+    const child = join(parent, "child");
+    expect(() => assertPathsDoNotOverlap(parent, parent)).toThrow(
+      "must not overlap",
+    );
+    expect(() => assertPathsDoNotOverlap(parent, child)).toThrow(
+      "must not overlap",
+    );
+    expect(() => assertPathsDoNotOverlap(child, parent)).toThrow(
+      "must not overlap",
+    );
+    expect(() =>
+      assertPathsDoNotOverlap(parent, resolve("sibling")),
+    ).not.toThrow();
   });
 });

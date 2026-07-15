@@ -50,8 +50,8 @@ The library includes several performance optimizations for handling large direct
 
 ### **Smart File Comparison**
 - **Binary file detection**: Automatically detects binary files using null byte checking
-- **Hash-based comparison**: Uses SHA-256 checksums for binary files and large files (>10MB)
-- **Streaming threshold**: Large files use streaming to avoid memory issues
+- **Byte-based comparison**: Binary files are compared as raw bytes
+- **Streaming threshold**: Large files are compared incrementally to bound memory usage
 - **Detailed diffs**: Small text files still get line-by-line diff output for debugging
 
 ### **Error Handling**

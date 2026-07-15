@@ -2,22 +2,35 @@
   "name": "vitest-directory-snapshot",
   "version": "0.6.1",
   "private": true,
+  "description": "Exact directory-tree snapshots for Vitest",
   "exports": {
     ".": "./src/index.ts",
-    "./types": "./src/types.ts"
+    "./setup": "./src/setup.ts"
   },
   "type": "module",
   "scripts": {
-    "test": "vitest",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:package": "pnpm build && node scripts/verify-package.mjs",
+    "typecheck": "tsc --noEmit",
     "build": "smartbundle"
   },
-  "keywords": [],
+  "keywords": [
+    "vitest",
+    "snapshot",
+    "directory",
+    "testing"
+  ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
+  },
   "peerDependencies": {
-    "vitest": "^3.0.0 || ^4.0.0"
+    "vitest": "^4.1.10"
   },
   "devDependencies": {
+    "@types/node": "^26.1.1",
     "@typescript/typescript6": "^6.0.2",
     "prettier": "^3.9.5",
     "smartbundle": "^0.16.0",
