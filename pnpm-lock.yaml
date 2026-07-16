@@ -18,8 +18,8 @@ importers:
         specifier: ^3.9.5
         version: 3.9.5
       smartbundle:
-        specifier: ^0.16.0
-        version: 0.16.0(@types/node@26.1.1)(@typescript/typescript6@6.0.2)(terser@5.31.2)(typescript@7.0.2)(vitest@4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1)(terser@5.31.2)))
+        specifier: ^0.16.1
+        version: 0.16.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2)(terser@5.31.2)(typescript@7.0.2)(vitest@4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1)(terser@5.31.2)))
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -558,8 +558,8 @@ packages:
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
 
-  smartbundle@0.16.0:
-    resolution: {integrity: sha512-gqndbB+UfHdYSTgYaf5uOH1FYuKGOvU0edlPEEvLC6uGSNjgWF0FJIDudN6Dik30XQ8oX5V24XWtVOc6cieykw==}
+  smartbundle@0.16.1:
+    resolution: {integrity: sha512-oBrk4870U/XYcxxHDJES7v7cBxRJlSduedsdbT0dfO1G83X3QEIqPg19XhSuKp2TehiIzuYQdNsMgUQYiraSOw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -1154,7 +1154,7 @@ snapshots:
 
   siginfo@2.0.0: {}
 
-  smartbundle@0.16.0(@types/node@26.1.1)(@typescript/typescript6@6.0.2)(terser@5.31.2)(typescript@7.0.2)(vitest@4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1)(terser@5.31.2))):
+  smartbundle@0.16.1(@types/node@26.1.1)(@typescript/typescript6@6.0.2)(terser@5.31.2)(typescript@7.0.2)(vitest@4.1.10(@types/node@26.1.1)(vite@8.1.4(@types/node@26.1.1)(terser@5.31.2))):
     dependencies:
       semver: 7.8.5
       vite: 8.1.4(@types/node@26.1.1)(terser@5.31.2)
