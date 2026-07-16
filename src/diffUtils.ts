@@ -1,73 +1,84 @@
+const CONTEXT_LINES = 3;
+const MAX_RENDERED_LINES = 200;
+
 export function createContentDiff(
   actual: string,
   expected: string,
   actualPath: string,
-  expectedPath: string
+  expectedPath: string,
 ): string {
-  const actualLines = actual.split('\n');
-  const expectedLines = expected.split('\n');
-  
+  const actualLines = actual.split("\n");
+  const expectedLines = expected.split("\n");
   const maxLines = Math.max(actualLines.length, expectedLines.length);
-  const diffLines: string[] = [];
-  
-  // Add header
-  diffLines.push(`Content differs between files:`);
-  diffLines.push(`  Actual:   ${actualPath}`);
-  diffLines.push(`  Expected: ${expectedPath}`);
-  diffLines.push('');
-  
-  // Find first and last differing lines for context
-  let firstDiff = -1;
-  let lastDiff = -1;
-  
-  for (let i = 0; i < maxLines; i++) {
-    const actualLine = actualLines[i] || '';
-    const expectedLine = expectedLines[i] || '';
-    
-    if (actualLine !== expectedLine) {
-      if (firstDiff === -1) firstDiff = i;
-      lastDiff = i;
+  const differentLines: number[] = [];
+
+  for (let index = 0; index < maxLines; index++) {
+    if (getLine(actualLines, index) !== getLine(expectedLines, index)) {
+      differentLines.push(index);
     }
   }
-  
-  if (firstDiff === -1) {
-    // This shouldn't happen, but just in case
-    diffLines.push('Files appear identical but comparison failed');
-    return diffLines.join('\n');
+
+  const output = [
+    "Content differs between files:",
+    `  Actual:   ${actualPath}`,
+    `  Expected: ${expectedPath}`,
+    "",
+  ];
+
+  if (differentLines.length === 0) {
+    output.push("Files contain the same decoded text but different bytes");
+    return output.join("\n");
   }
-  
-  // Show context around differences (3 lines before and after)
-  const contextLines = 3;
-  const startLine = Math.max(0, firstDiff - contextLines);
-  const endLine = Math.min(maxLines - 1, lastDiff + contextLines);
-  
-  // Add line numbers and content
-  for (let i = startLine; i <= endLine; i++) {
-    const lineNum = i + 1;
-    const actualLine = actualLines[i] || '';
-    const expectedLine = expectedLines[i] || '';
-    
-    if (actualLine !== expectedLine) {
-      if (actualLine !== '') {
-        diffLines.push(`- ${lineNum.toString().padStart(3)}: ${actualLine}`);
-      }
-      if (expectedLine !== '') {
-        diffLines.push(`+ ${lineNum.toString().padStart(3)}: ${expectedLine}`);
-      }
-      if (actualLine === '') {
-        diffLines.push(`- ${lineNum.toString().padStart(3)}: <missing line>`);
-      }
-      if (expectedLine === '') {
-        diffLines.push(`+ ${lineNum.toString().padStart(3)}: <missing line>`);
-      }
+
+  const visibleLines = new Set<number>();
+  for (const differentLine of differentLines) {
+    for (
+      let index = Math.max(0, differentLine - CONTEXT_LINES);
+      index <= Math.min(maxLines - 1, differentLine + CONTEXT_LINES);
+      index++
+    ) {
+      visibleLines.add(index);
+    }
+  }
+
+  const sortedVisibleLines = [...visibleLines].slice(0, MAX_RENDERED_LINES);
+  let previousLine = -1;
+
+  for (const index of sortedVisibleLines) {
+    if (previousLine >= 0 && index > previousLine + 1) {
+      output.push(`... ${index - previousLine - 1} lines omitted ...`);
+    }
+
+    const lineNumber = (index + 1).toString().padStart(3);
+    const actualLine = getLine(actualLines, index);
+    const expectedLine = getLine(expectedLines, index);
+
+    if (actualLine === expectedLine) {
+      output.push(`  ${lineNumber}: ${actualLine}`);
     } else {
-      diffLines.push(`  ${lineNum.toString().padStart(3)}: ${actualLine}`);
+      output.push(`- ${lineNumber}: ${formatLine(actualLine)}`);
+      output.push(`+ ${lineNumber}: ${formatLine(expectedLine)}`);
     }
+    previousLine = index;
   }
-  
-  // Add summary
-  diffLines.push('');
-  diffLines.push(`Lines in actual: ${actualLines.length}, Lines in expected: ${expectedLines.length}`);
-  
-  return diffLines.join('\n');
+
+  if (visibleLines.size > sortedVisibleLines.length) {
+    output.push(
+      `... ${visibleLines.size - sortedVisibleLines.length} lines omitted ...`,
+    );
+  }
+
+  output.push("");
+  output.push(
+    `Lines in actual: ${actualLines.length}, Lines in expected: ${expectedLines.length}`,
+  );
+  return output.join("\n");
+}
+
+function getLine(lines: string[], index: number): string | undefined {
+  return index < lines.length ? lines[index] : undefined;
+}
+
+function formatLine(line: string | undefined): string {
+  return line === undefined ? "<missing line>" : line;
 }

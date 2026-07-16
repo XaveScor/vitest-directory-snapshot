@@ -20,15 +20,15 @@ describe("performance", () => {
   it("should handle large directory structures efficiently", async () => {
     const srcDir = resolve(fixturesDir, "large-directory");
     const destDir = join(testDir, "dest");
-    
+
     // Copy the fixture to create identical destination
     await fs.promises.cp(srcDir, destDir, { recursive: true });
-    
+
     // This should complete quickly with optimized lookup
     const compareStart = Date.now();
     expect(() => compareDirectories(srcDir, destDir)).not.toThrow();
     const compareTime = Date.now() - compareStart;
-    
+
     // Should take less than 1 second for 100 files
     expect(compareTime).toBeLessThan(1000);
   });
@@ -36,55 +36,67 @@ describe("performance", () => {
   it("should handle binary files efficiently", async () => {
     const srcDir = join(testDir, "src");
     const destDir = join(testDir, "dest");
-    
+
     fs.mkdirSync(srcDir);
     fs.mkdirSync(destDir);
-    
+
     // Copy binary fixture files
     const srcFile = join(srcDir, "binary.bin");
     const destFile = join(destDir, "binary.bin");
     const fixtureFile = resolve(fixturesDir, "binary-files/image.bin");
-    
+
     await fs.promises.copyFile(fixtureFile, srcFile);
     await fs.promises.copyFile(fixtureFile, destFile);
-    
-    // This should use hash comparison instead of content diff
+
+    // Binary files should bypass text diff generation.
     const startTime = Date.now();
     expect(() => compareDirectories(srcDir, destDir)).not.toThrow();
     const compareTime = Date.now() - startTime;
-    
-    // Should be very fast with hash comparison
+
+    // Small binary files should be compared quickly.
     expect(compareTime).toBeLessThan(100);
   });
 
   it("should detect binary file differences quickly", async () => {
     const srcDir = join(testDir, "src");
     const destDir = join(testDir, "dest");
-    
+
     fs.mkdirSync(srcDir);
     fs.mkdirSync(destDir);
-    
+
     // Copy different binary fixture files
     const srcFile = join(srcDir, "binary.bin");
     const destFile = join(destDir, "binary.bin");
-    
-    await fs.promises.copyFile(resolve(fixturesDir, "binary-files/image.bin"), srcFile);
-    await fs.promises.copyFile(resolve(fixturesDir, "binary-files/different.bin"), destFile);
-    
+
+    await fs.promises.copyFile(
+      resolve(fixturesDir, "binary-files/image.bin"),
+      srcFile,
+    );
+    await fs.promises.copyFile(
+      resolve(fixturesDir, "binary-files/different.bin"),
+      destFile,
+    );
+
     const startTime = Date.now();
-    expect(() => compareDirectories(srcDir, destDir)).toThrow("Binary files differ");
+    expect(() => compareDirectories(srcDir, destDir)).toThrow(
+      "Binary files differ",
+    );
     const compareTime = Date.now() - startTime;
-    
-    // Should fail fast with hash comparison
+
+    // Small binary differences should fail quickly.
     expect(compareTime).toBeLessThan(100);
   });
 
   it("should provide detailed diffs for small text files", () => {
     const srcDir = resolve(fixturesDir, "directories/file-content-diff");
     const destDir = resolve(fixturesDir, "directories/file-content-diff-dest");
-    
+
     // Should provide detailed diff for small text files
-    expect(() => compareDirectories(srcDir, destDir)).toThrow("File content differs:");
-    expect(() => compareDirectories(srcDir, destDir)).toThrow("Content differs between files:");
+    expect(() => compareDirectories(srcDir, destDir)).toThrow(
+      "File content differs:",
+    );
+    expect(() => compareDirectories(srcDir, destDir)).toThrow(
+      "Content differs between files:",
+    );
   });
 });

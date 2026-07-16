@@ -1,50 +1,107 @@
 # vitest-directory-snapshot
 
-## Overview
+Exact directory-tree snapshots for Vitest. The matcher compares entry names,
+entry types, empty directories, and file bytes.
 
-vitest-directory-snapshot is a testing utility for Vitest that enables snapshot testing of directory structures. It provides an extended version of Vitest's test function, along with a custom matcher, to assert that a directory (its structure and file contents) matches a stored snapshot. This allows you to easily compare changes in file system hierarchies during testing.
+## Requirements
+
+- Node.js 20, 22, or 24 and newer
+- Vitest 4.1.10 or newer within the current major version
 
 ## Installation
 
-Install the package along with Vitest (if not already installed) using your package manager. For example, using pnpm:
+```sh
+pnpm add --save-dev vitest vitest-directory-snapshot
+```
 
-    pnpm install vitest-directory-snapshot
-    pnpm install vitest --save-dev
+## Setup
 
-## Public API
-
-The package "vitest-directory-snapshot" exposes the following public API:
-
-1. test  
- • An extended version of Vitest's test function.  
- • It automatically supports directory snapshot testing via a temporary directory fixture.
-
-2. toMatchDirSnapshot(received: unknown)  
- • A custom Vitest matcher that compares a given directory against a stored snapshot.  
- • It expects an absolute path (string) to a directory and verifies that its structure and file contents match the stored snapshot.
-
-### Example Usage
-
-    import { describe, expect } from "vitest";
-    import { test, toMatchDirSnapshot } from "vitest-directory-snapshot";
-    
-    describe("Directory Snapshot Tests", () => {
-      test("snapshot comparison", () => {
-        // Provide an absolute path to the directory you want to verify
-        expect("/absolute/path/to/directory").toMatchDirSnapshot();
-      });
-    });
-
-#### Matcher Initialization
-
-To register the custom matcher in Vitest, add a setup file (e.g. `setupFile.ts`) with the following content:
+Register the default matcher in your Vitest configuration:
 
 ```ts
-import { createToMatchDirSnapshot } from "vitest-directory-snapshot";
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
 
-expect.extend({
-  toMatchDirSnapshot: createToMatchDirSnapshot({ snapshotDirName: "custom_snapshots" }),
+export default defineConfig({
+  test: {
+    setupFiles: ["vitest-directory-snapshot/setup"],
+  },
 });
 ```
 
-You can also configure the custom snapshot directory name by setting the environment variable `VITEST_DIR_SNAPSHOT_DIR` when running tests.
+The setup entry point also installs the TypeScript matcher declaration. Vitest
+globals are not required.
+
+For a custom snapshot directory name, use your own setup file:
+
+```ts
+// test/setup.ts
+import { expect } from "vitest";
+import { createToMatchDirSnapshot } from "vitest-directory-snapshot";
+
+expect.extend({
+  toMatchDirSnapshot: createToMatchDirSnapshot({
+    snapshotDirectoryName: "__generated_snapshots__",
+  }),
+});
+```
+
+`snapshotDirectoryName` must be one path component. It defaults to
+`__dir_snapshots__`. The `VITEST_DIR_SNAPSHOT_DIR` environment variable can
+override the default and follows the same restriction.
+
+## Usage
+
+The received value must be an absolute path to an existing directory:
+
+```ts
+import { resolve } from "node:path";
+import { expect, test } from "vitest";
+
+test("generated client", () => {
+  const output = resolve("test-output/client");
+  expect(output).toMatchDirSnapshot();
+});
+```
+
+When a test owns multiple directory snapshots, all invocations must have a
+non-empty hint and each hint must be unique within that test. A single call may
+omit the hint:
+
+```ts
+expect(clientOutput).toMatchDirSnapshot("client");
+expect(serverOutput).toMatchDirSnapshot("server");
+```
+
+Create or update snapshots with Vitest's standard flag:
+
+```sh
+vitest --update-snapshots
+```
+
+Missing snapshots are created when Vitest's update mode is `new`. Existing
+snapshots are replaced when the mode is `all`; stale files are not retained.
+
+## Snapshot Semantics
+
+- Directory contents are compared in both directions.
+- Small UTF-8 text files receive a bounded line diff.
+- Binary and large files are compared byte-for-byte with bounded memory.
+- Empty directories contain a reserved `.vitest-directory-snapshot-empty`
+  marker so Git can preserve them. Source directories may not contain that
+  reserved name.
+- Symbolic links and special filesystem entries are rejected rather than
+  followed.
+- Permissions, timestamps, ownership, hard-link identity, and extended
+  attributes are not compared.
+- `.not.toMatchDirSnapshot()` is intentionally unsupported.
+
+## Public API
+
+```ts
+interface DirectorySnapshotOptions {
+  snapshotDirectoryName?: string;
+}
+
+createToMatchDirSnapshot(options?): DirectorySnapshotMatcher;
+```

@@ -1,2 +1,6 @@
-export { createToMatchDirSnapshot } from "./toMatchDirSnapshot.js";
-export { tmpDir, myTest as test } from "./myTest.js";
+import "./types.js";
+
+export {
+  createToMatchDirSnapshot,
+  type DirectorySnapshotOptions,
+} from "./toMatchDirSnapshot.js";
