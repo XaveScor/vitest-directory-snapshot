@@ -30,5 +30,5 @@ const esmDeclaration = await readFile(
   resolve(dist, "__compiled__/esm/src/index.d.mts"),
   "utf8",
 );
-assert.match(esmDeclaration, /import "\.\/types\.js"/);
+assert.match(esmDeclaration, /import "\.\/types\.mjs"/);
 assert.match(esmDeclaration, /DirectorySnapshotOptions/);

@@ -1,2 +1,2 @@
 minimumReleaseAgeExclude:
-  - smartbundle@0.16.0 || 0.16.1
+  - smartbundle@0.16.0 || 0.16.1 || 0.17.0-alpha.1
